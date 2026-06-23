@@ -8,24 +8,12 @@
 * suitable for SET_ACTIVITY.
 --]]
 
-local zones = require('data.zones');
-
--- Base URL for externally hosted zone art. Discord proxies external URLs for the
--- large image. Images are named by zone id (e.g. .../zones/103.png).
-local ASSET_BASE = 'https://raw.githubusercontent.com/Shuu-37/xipresence/main/assets/zones/';
-
 local activity = {};
 
---[[
-* Builds the large-image URL for a zone, falling back to the default art when the
-* zone has no committed image.
---]]
-local function zone_image(zoneId)
-    if (zones[zoneId] ~= nil) then
-        return ('%s%d.png'):format(ASSET_BASE, zoneId);
-    end
-    return ('%sdefault.png'):format(ASSET_BASE);
-end
+-- Static large image: the FFXI game icon, uploaded to the Discord application's
+-- Rich Presence art assets under this key (see README). The current zone is shown
+-- as the image hover text and in the details line - per-zone art is on hold.
+local GAME_IMAGE = 'ffxi';
 
 --[[
 * Builds the state line describing what the player is doing socially.
@@ -86,10 +74,11 @@ function activity.build(snap, opts)
         end
     end
 
-    -- Assets: zone art as the large image, job icon as the small image.
+    -- Assets: the FFXI game icon as the large image (zone shown as hover text),
+    -- job icon as the small image.
     local assets = T{};
     if (opts.showZoneArt) then
-        assets.large_image = zone_image(snap.zoneId);
+        assets.large_image = GAME_IMAGE;
         assets.large_text  = snap.zoneName;
     end
 

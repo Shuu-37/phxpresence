@@ -50,24 +50,31 @@ your friends and shared servers). Turn it off any time with
 
 ## Assets
 
-Zone artwork is hosted as external image URLs and referenced by zone id
-(`assets/zones/<id>.png`). Regenerate / refresh the art set with:
-
-```pwsh
-pwsh tools/fetch_zone_assets.ps1
-```
-
-This pulls area images from [ffxiclopedia](https://ffxiclopedia.fandom.com) and
-writes a coverage report. Zones without art fall back to `assets/zones/default.png`.
+Presence currently uses a **single large image** — the FFXI game icon
+(`assets/xi_icon.png`) — for every zone. The current zone is still shown in the
+details line and as the image hover text. Per-zone artwork is on hold; the
+plumbing for it (`data/zones.lua` + `tools/build_zone_urls.ps1`, which resolves
+[bg-wiki](https://www.bg-wiki.com) image URLs) remains for later.
 
 ### Discord application setup (one-time)
 
-- The "game name" shown in Discord is the **application name** in the
-  [Discord Developer Portal](https://discord.com/developers/applications) — set
-  it to `Final Fantasy XI` for this app id (`1518771970878214395`).
-- Job icons use small-image asset **keys** named `job_<abbr>` (e.g. `job_war`).
-  Upload 22 job icons under *Rich Presence → Art Assets* to enable them; if they
-  aren't present, the small icon is simply omitted.
+In the [Discord Developer Portal](https://discord.com/developers/applications)
+for app id `1518771970878214395`:
+
+- Set the **application name** to `Final Fantasy XI` — this is the "game name"
+  Discord shows next to *Playing*.
+- Under *Rich Presence → Art Assets*, upload `assets/xi_icon.png` with the key
+  **`ffxi`** (this is the large image).
+- Upload the job icons in `assets/jobs/` for the small image (your **primary
+  job**). Each file is named by job abbreviation, and the key must be
+  `job_<abbr>` — e.g. `war.png` → key **`job_war`**, `nin.png` → **`job_nin`**.
+  If a job's key is missing, the small icon is simply omitted.
+
+## Credits
+
+- Job icons (`assets/jobs/`) — Final Fantasy XIV (Square Enix) and
+  [Tylas11](https://github.com/Tylas11), via the
+  [XIUI](https://github.com/tirem/XIUI) addon.
 
 ## License
 

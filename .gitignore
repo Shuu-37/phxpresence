@@ -10,5 +10,5 @@ settings/
 Thumbs.db
 desktop.ini
 
-# Asset fetch report
-tools/asset_coverage.txt
+# Asset build logs
+tools/build_run.log
