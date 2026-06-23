@@ -1,6 +1,6 @@
 --[[
-* xipresence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/xipresence]
+* phx-presence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
 * MIT License
 *
 * presence/state.lua

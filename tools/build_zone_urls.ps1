@@ -48,7 +48,7 @@ foreach ($m in [regex]::Matches($raw, '\[\s*(\d+)\s*\]\s*=\s*\{\s*name\s*=\s*"((
     $zones[$id] = @{ name = $m.Groups[2].Value; image = $m.Groups[3].Value }
 }
 
-$ua = @{ 'User-Agent' = 'xipresence-url-build/1.0' }
+$ua = @{ 'User-Agent' = 'phx-presence-url-build/1.0' }
 
 # ALL CAPS zone name -> a bg-wiki File title base (Title_Case, underscores).
 function ConvertTo-Title([string]$name) {
@@ -190,8 +190,8 @@ if ($batch.Count -gt 0) {
 # --- Rewrite data/zones.lua ----------------------------------------------------
 $header = @'
 --[[
-* xipresence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/xipresence]
+* phx-presence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
 * MIT License
 *
 * data/zones.lua

@@ -1,6 +1,6 @@
 --[[
-* xipresence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/xipresence]
+* phx-presence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
 * MIT License
 *
 * presence/ui.lua
@@ -20,7 +20,7 @@ local ui = {};
 ui.is_open = { false };
 
 -- Widget value buffers, re-synced from the live config every frame so external
--- changes (e.g. /xipresence commands) stay reflected while the window is open.
+-- changes (e.g. /phx-presence commands) stay reflected while the window is open.
 local r = {
     enabled  = { false },
     showName = { true },
@@ -151,14 +151,14 @@ local function draw_preview_card(p)
     local cx, cy = imgui.GetCursorScreenPos();
     imgui.SetCursorScreenPos({ cx, cy + off_y });
     imgui.BeginGroup();
-    imgui.Text('Final Fantasy XI');
+    imgui.Text('Phoenix XI');
     imgui.TextColored(COLOR_DIM, p.details);
     imgui.TextColored(COLOR_DIM, state_line(p));
     imgui.EndGroup();
 end
 
 --[[
-* Toggles window visibility (bound to /xipresence config).
+* Toggles window visibility (bound to /phx-presence config).
 --]]
 function ui.toggle()
     ui.is_open[1] = not ui.is_open[1];
@@ -193,7 +193,7 @@ function ui.render(ctx)
     r.showZone[1] = ctx.config.showZone;
 
     imgui.SetNextWindowSize({ 340, 0 }, ImGuiCond_FirstUseEver);
-    if (imgui.Begin('xipresence', ui.is_open, ImGuiWindowFlags_None)) then
+    if (imgui.Begin('phx-presence', ui.is_open, ImGuiWindowFlags_None)) then
         -- Connection status + reconnect.
         imgui.Text('Discord:');
         imgui.SameLine();

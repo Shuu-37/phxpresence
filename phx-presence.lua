@@ -1,6 +1,6 @@
 --[[
-* xipresence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/xipresence]
+* phx-presence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
 * MIT License
 *
 * Publishes Discord Rich Presence (job/subjob, zone, party status, elapsed time)
@@ -8,11 +8,11 @@
 * over its RPC named pipe - no Discord login/OAuth required.
 --]]
 
-addon.name    = 'xipresence';
+addon.name    = 'phx-presence';
 addon.author  = 'Shuu-37';
 addon.version = '0.1.0';
 addon.desc    = 'Discord Rich Presence for FFXI.';
-addon.link    = 'https://github.com/Shuu-37/xipresence';
+addon.link    = 'https://github.com/Shuu-37/phx-presence';
 
 require('common');
 
@@ -23,7 +23,7 @@ local activity = require('presence.activity');
 local ui       = require('presence.ui');
 local Presence = require('discord.presence');
 
--- Discord application (client) id for xipresence.
+-- Discord application (client) id for phx-presence.
 local CLIENT_ID = '1518771970878214395';
 
 -- How often (seconds) we poll game state and refresh presence.
@@ -48,7 +48,7 @@ local PACKET_SEARCH_COMMENT = 0x00E0;
 
 local defaults = T{
     enabled     = true,
-    showName    = true,  -- character name in details (privacy: /xipresence name off)
+    showName    = true,  -- character name in details (privacy: /phx-presence name off)
     showParty   = true,  -- show the party slot pill
     showZone    = true,  -- show the current zone (state line + image hover text)
     interval    = DEFAULT_INTERVAL,
@@ -164,13 +164,13 @@ end
 local function print_help()
     print(chat.header(addon.name):append(chat.message('Available commands:')));
     local cmds = T{
-        { '/xipresence',             'Open the config window.' },
-        { '/xipresence on | off',    'Enable or disable Rich Presence.' },
-        { '/xipresence status',      'Show connection status and current presence.' },
-        { '/xipresence reconnect',   'Force a reconnect to Discord.' },
-        { '/xipresence name on|off', 'Show or hide your character name.' },
-        { '/xipresence party on|off','Show or hide the party slot count.' },
-        { '/xipresence zone on|off', 'Show or hide your current zone.' },
+        { '/phx-presence',             'Open the config window.' },
+        { '/phx-presence on | off',    'Enable or disable Rich Presence.' },
+        { '/phx-presence status',      'Show connection status and current presence.' },
+        { '/phx-presence reconnect',   'Force a reconnect to Discord.' },
+        { '/phx-presence name on|off', 'Show or hide your character name.' },
+        { '/phx-presence party on|off','Show or hide the party slot count.' },
+        { '/phx-presence zone on|off', 'Show or hide your current zone.' },
     };
     cmds:ieach(function (v)
         print(chat.header(addon.name):append(chat.error('Usage: ')):append(chat.message(v[1]):append(' - ')):append(chat.color1(6, v[2])));
@@ -332,11 +332,11 @@ ashita.events.register('packet_out', 'packet_out_cb', function (e)
 end);
 
 --[[
-* event: command - /xipresence handler.
+* event: command - /phx-presence handler.
 --]]
 ashita.events.register('command', 'command_cb', function (e)
     local args = e.command:args();
-    if (#args == 0 or not args[1]:any('/xipresence', '/xipre')) then
+    if (#args == 0 or not args[1]:any('/phx-presence', '/phx')) then
         return;
     end
 
@@ -396,7 +396,7 @@ ashita.events.register('command', 'command_cb', function (e)
 
     if (handled[sub] ~= nil) then
         if (toggle == nil) then
-            print(chat.header(addon.name):append(chat.error(('Usage: /xipresence %s on|off'):format(sub))));
+            print(chat.header(addon.name):append(chat.error(('Usage: /phx-presence %s on|off'):format(sub))));
             return;
         end
         handled[sub](toggle);

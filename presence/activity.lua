@@ -1,6 +1,6 @@
 --[[
-* xipresence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/xipresence]
+* phx-presence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
 * MIT License
 *
 * presence/activity.lua
@@ -62,7 +62,7 @@ function activity.build(snap, opts)
         local act = T{
             type    = 0, -- Playing
             state   = 'Anonymous',
-            assets  = T{ large_image = GAME_IMAGE, large_text = 'Final Fantasy XI' },
+            assets  = T{ large_image = GAME_IMAGE, large_text = 'Phoenix XI' },
         };
         if (opts.showName and snap.name ~= nil) then
             act.details = snap.name;
@@ -102,7 +102,7 @@ function activity.build(snap, opts)
     -- when shown, else the game name), job icon as the small image.
     local assets = T{
         large_image = GAME_IMAGE,
-        large_text  = opts.showZone and snap.zoneName or 'Final Fantasy XI',
+        large_text  = opts.showZone and snap.zoneName or 'Phoenix XI',
     };
 
     -- Small image: a status icon (assets/status/) takes precedence over the job
