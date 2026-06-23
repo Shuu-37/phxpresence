@@ -9,7 +9,7 @@
 --]]
 
 addon.name    = 'phxpresence';
-addon.author  = 'Shuu-37';
+addon.author  = 'Phoenix Team';
 addon.version = '0.1.0';
 addon.desc    = 'Discord Rich Presence for FFXI.';
 addon.link    = 'https://github.com/Shuu-37/phxpresence';
