@@ -83,11 +83,10 @@ function activity.build(snap, opts)
         assets.large_text  = snap.zoneName;
     end
 
-    local jobAbbr = snap.jobLine:match('^[^/]+');
-    if (jobAbbr ~= nil) then
+    if (snap.mainAbbr ~= nil) then
         -- Job-icon asset keys match the filenames in assets/jobs/ (e.g. 'war').
-        assets.small_image = jobAbbr:lower();
-        assets.small_text  = ('%s (Lv%d)'):format(snap.jobLine, snap.mainLevel or 0);
+        assets.small_image = snap.mainAbbr:lower();
+        assets.small_text  = snap.jobLine;
     end
 
     -- Only attach assets if non-empty (json renders {} as []).

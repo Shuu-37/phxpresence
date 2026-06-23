@@ -102,12 +102,15 @@ function state.snapshot()
     local subJob = player:GetSubJob();
     local mainAbbr = job_abbr(mainJob);
     local subAbbr  = job_abbr(subJob);
+    local mainLevel = player:GetMainJobLevel();
+    local subLevel  = player:GetSubJobLevel();
 
+    -- FFXI-standard job line with levels, e.g. "WAR99/NIN49" (or "WAR99" subless).
     local jobLine;
     if (subAbbr ~= nil) then
-        jobLine = ('%s/%s'):format(mainAbbr or '???', subAbbr);
+        jobLine = ('%s%d/%s%d'):format(mainAbbr or '???', mainLevel, subAbbr, subLevel);
     else
-        jobLine = mainAbbr or '???';
+        jobLine = ('%s%d'):format(mainAbbr or '???', mainLevel);
     end
 
     local zoneId   = party:GetMemberZone(0) or 0;
@@ -134,8 +137,9 @@ function state.snapshot()
         name         = name,
         mainJob      = mainJob,
         subJob       = subJob,
-        mainLevel    = player:GetMainJobLevel(),
-        subLevel     = player:GetSubJobLevel(),
+        mainLevel    = mainLevel,
+        subLevel     = subLevel,
+        mainAbbr     = mainAbbr,
         jobLine      = jobLine,
         zoneId       = zoneId,
         zoneName     = zoneName,
