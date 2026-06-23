@@ -1,0 +1,14 @@
+# Ashita writes per-character settings under config/ at runtime.
+config/
+settings/
+
+# Editor / OS noise
+.vscode/
+.idea/
+*.tmp
+*.log
+Thumbs.db
+desktop.ini
+
+# Asset fetch report
+tools/asset_coverage.txt
