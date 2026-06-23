@@ -1,6 +1,6 @@
 --[[
-* phx-presence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
+* phxpresence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phxpresence]
 * MIT License
 *
 * presence/state.lua
@@ -147,6 +147,49 @@ function state.snapshot()
         allianceSize = aSize,
         inAlliance   = inAlliance,
         status       = statusStr,
+    };
+end
+
+-- Render Flags1 ("Name Flags") bits for the local player, confirmed empirically by
+-- toggling in-game and diffing the dword (NOT the same layout as the 0x000D packet
+-- byte, which uses 0x08/0x10/0x40). These let the addon recover the real flag state
+-- on load instead of assuming everything is off until the next packet arrives.
+local RFLAG1_SEEK = 0x00100000;
+local RFLAG1_AWAY = 0x00400000;
+local RFLAG1_ANON = 0x00800000;
+
+--[[
+* Reads the local player's social flags (/anon, /seek, /away) straight from the live
+* entity, so the addon can recover the real state on load instead of assuming off
+* until the next packet.
+*
+* @return {table|nil} {anon, seeking, away}, or nil if not in-world yet.
+--]]
+function state.social_flags()
+    if (AshitaCore == nil) then
+        return nil;
+    end
+    local mm = AshitaCore:GetMemoryManager();
+    if (mm == nil) then
+        return nil;
+    end
+    local party  = mm:GetParty();
+    local entity = mm:GetEntity();
+    if (party == nil or entity == nil) then
+        return nil;
+    end
+    local idx = party:GetMemberTargetIndex(0);
+    if (idx == nil or idx == 0) then
+        return nil; -- not logged in / not in-world
+    end
+    local f = entity:GetRenderFlags1(idx);
+    if (f == nil) then
+        return nil;
+    end
+    return {
+        anon    = bit.band(f, RFLAG1_ANON) ~= 0,
+        seeking = bit.band(f, RFLAG1_SEEK) ~= 0,
+        away    = bit.band(f, RFLAG1_AWAY) ~= 0,
     };
 end
 

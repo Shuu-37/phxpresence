@@ -1,6 +1,6 @@
 --[[
-* phx-presence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
+* phxpresence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phxpresence]
 * MIT License
 *
 * Publishes Discord Rich Presence (job/subjob, zone, party status, elapsed time)
@@ -8,11 +8,11 @@
 * over its RPC named pipe - no Discord login/OAuth required.
 --]]
 
-addon.name    = 'phx-presence';
+addon.name    = 'phxpresence';
 addon.author  = 'Shuu-37';
 addon.version = '0.1.0';
 addon.desc    = 'Discord Rich Presence for FFXI.';
-addon.link    = 'https://github.com/Shuu-37/phx-presence';
+addon.link    = 'https://github.com/Shuu-37/phxpresence';
 
 require('common');
 
@@ -23,7 +23,7 @@ local activity = require('presence.activity');
 local ui       = require('presence.ui');
 local Presence = require('discord.presence');
 
--- Discord application (client) id for phx-presence.
+-- Discord application (client) id for phxpresence.
 local CLIENT_ID = '1518771970878214395';
 
 -- How often (seconds) we poll game state and refresh presence.
@@ -48,8 +48,10 @@ local PACKET_SEARCH_COMMENT = 0x00E0;
 
 local defaults = T{
     enabled     = true,
-    showName    = true,  -- character name in details (privacy: /phx-presence name off)
-    showParty   = true,  -- show the party slot pill
+    showName    = true,  -- character name in details (privacy: /phxpresence name off)
+    showJob     = true,  -- job/level line in details + the job icon badge
+    showParty   = true,  -- party slot pill + "In party"/"In alliance"/"Solo" text
+    hidePartyWhenSolo = false, -- suppress party info while solo (sub of showParty)
     showZone    = true,  -- show the current zone (state line + image hover text)
     interval    = DEFAULT_INTERVAL,
 };
@@ -63,13 +65,21 @@ local gRuntime   = { seeking = false, away = false }; -- live /seek + /away flag
 local gAnon      = false; -- in-game /anon flag, detected from packet 0x0037
 local gSeacom    = nil;   -- in-game search comment (/seacom), from packet 0x00E0
 
+-- Forward declarations: the load/poll handlers below seed the social flags from
+-- game memory, but the setters that own the diff logic live with the packet
+-- handlers further down.
+local set_flags;
+local sync_social_flags;
+
 --[[
 * Builds the display options table passed to activity.build().
 --]]
 local function display_opts()
     return T{
         showName    = gConfig.showName,
+        showJob     = gConfig.showJob,
         showParty   = gConfig.showParty,
+        hidePartyWhenSolo = gConfig.hidePartyWhenSolo,
         showZone    = gConfig.showZone,
         seeking     = gRuntime.seeking,
         away        = gRuntime.away,
@@ -136,7 +146,7 @@ local function build_ctx()
         local assets = d.assets or T{};
         preview = {
             details    = d.details or '',
-            state      = d.state,
+            state      = d.state or '',
             party      = d.party and d.party.size, -- {current, max} or nil
             largeImage = assets.large_image,
             smallImage = assets.small_image,
@@ -164,13 +174,15 @@ end
 local function print_help()
     print(chat.header(addon.name):append(chat.message('Available commands:')));
     local cmds = T{
-        { '/phx-presence',             'Open the config window.' },
-        { '/phx-presence on | off',    'Enable or disable Rich Presence.' },
-        { '/phx-presence status',      'Show connection status and current presence.' },
-        { '/phx-presence reconnect',   'Force a reconnect to Discord.' },
-        { '/phx-presence name on|off', 'Show or hide your character name.' },
-        { '/phx-presence party on|off','Show or hide the party slot count.' },
-        { '/phx-presence zone on|off', 'Show or hide your current zone.' },
+        { '/phxpresence',             'Open the config window.' },
+        { '/phxpresence on | off',    'Enable or disable Rich Presence.' },
+        { '/phxpresence status',      'Show connection status and current presence.' },
+        { '/phxpresence reconnect',   'Force a reconnect to Discord.' },
+        { '/phxpresence name on|off', 'Show or hide your character name.' },
+        { '/phxpresence job on|off',  'Show or hide your job/level and job icon.' },
+        { '/phxpresence party on|off','Show or hide party info (slots + membership).' },
+        { '/phxpresence zone on|off', 'Show or hide your current zone.' },
+        { '/phxp',                     'Shortcut for /phxpresence.' },
     };
     cmds:ieach(function (v)
         print(chat.header(addon.name):append(chat.error('Usage: ')):append(chat.message(v[1]):append(' - ')):append(chat.color1(6, v[2])));
@@ -193,6 +205,10 @@ end
 ashita.events.register('load', 'load_cb', function ()
     gSession  = os.time();
     gLastPoll = 0;
+    -- Recover the real /anon, /seek, /away state from memory now, since a reload
+    -- mid-session won't get a fresh flag packet (otherwise we'd broadcast job/zone
+    -- while still anonymous until the next toggle).
+    sync_social_flags();
     if (gConfig.enabled) then
         gPresence:tick(); -- kick off the first connect attempt
     end
@@ -226,6 +242,7 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     gLastPoll = now;
 
     gPresence:tick();
+    sync_social_flags(); -- self-heal flags in case a packet was missed
     refresh(false);
 end);
 
@@ -233,12 +250,26 @@ end);
 * Records the latest social flags (/anon, /seek, /away) and pushes presence
 * immediately if any flipped, so the change shows without waiting for the next poll.
 --]]
-local function set_flags(anon, seeking, away)
+set_flags = function (anon, seeking, away)
     if (anon ~= gAnon or seeking ~= gRuntime.seeking or away ~= gRuntime.away) then
         gAnon = anon;
         gRuntime.seeking = seeking;
         gRuntime.away = away;
         refresh(true);
+    end
+end
+
+--[[
+* Seeds the social flags (/anon, /seek, /away) from live game memory (see
+* state.social_flags). Used on load to recover state immediately - a reload
+* mid-session never gets a fresh flag packet - and on each poll as a safety net;
+* no-op until the player is in-world. The packet handlers still push sub-poll
+* changes instantly; this just keeps memory as the source of truth.
+--]]
+sync_social_flags = function ()
+    local f = state.social_flags();
+    if (f ~= nil) then
+        set_flags(f.anon, f.seeking, f.away);
     end
 end
 
@@ -332,11 +363,11 @@ ashita.events.register('packet_out', 'packet_out_cb', function (e)
 end);
 
 --[[
-* event: command - /phx-presence handler.
+* event: command - /phxpresence handler.
 --]]
 ashita.events.register('command', 'command_cb', function (e)
     local args = e.command:args();
-    if (#args == 0 or not args[1]:any('/phx-presence', '/phx')) then
+    if (#args == 0 or not args[1]:any('/phxpresence', '/phxp')) then
         return;
     end
 
@@ -370,7 +401,7 @@ ashita.events.register('command', 'command_cb', function (e)
             end
             local d = activity.build(snap, display_opts());
             print(chat.header(addon.name):append(chat.message('Details: ')):append(chat.color1(6, d.details or '(hidden)')));
-            print(chat.header(addon.name):append(chat.message('State:   ')):append(chat.color1(6, d.state)));
+            print(chat.header(addon.name):append(chat.message('State:   ')):append(chat.color1(6, d.state or '(hidden)')));
         else
             print(chat.header(addon.name):append(chat.message('Not logged in / no presence to show.')));
         end
@@ -389,6 +420,7 @@ ashita.events.register('command', 'command_cb', function (e)
     local set_show_zone = function (v) gConfig.showZone = v; settings.save(); end;
     local handled = T{
         name  = function (v) gConfig.showName = v; settings.save(); end,
+        job   = function (v) gConfig.showJob = v; settings.save(); end,
         party = function (v) gConfig.showParty = v; settings.save(); end,
         zone  = set_show_zone,
         art   = set_show_zone, -- backward-compat alias for the old 'art' subcommand
@@ -396,7 +428,7 @@ ashita.events.register('command', 'command_cb', function (e)
 
     if (handled[sub] ~= nil) then
         if (toggle == nil) then
-            print(chat.header(addon.name):append(chat.error(('Usage: /phx-presence %s on|off'):format(sub))));
+            print(chat.header(addon.name):append(chat.error(('Usage: /phxpresence %s on|off'):format(sub))));
             return;
         end
         handled[sub](toggle);

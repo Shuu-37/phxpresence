@@ -1,6 +1,6 @@
 --[[
-* phx-presence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
+* phxpresence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phxpresence]
 * MIT License
 *
 * data/zones.lua

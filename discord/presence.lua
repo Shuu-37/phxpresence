@@ -1,6 +1,6 @@
 --[[
-* phx-presence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
+* phxpresence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phxpresence]
 * MIT License
 *
 * discord/presence.lua
@@ -43,7 +43,7 @@ function Presence.new(client_id)
 end
 
 --[[
-* Returns a short status string for the /phx-presence status command.
+* Returns a short status string for the /phxpresence status command.
 --]]
 function Presence:status()
     if (not self.ipc:is_connected()) then

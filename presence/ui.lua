@@ -1,6 +1,6 @@
 --[[
-* phx-presence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
+* phxpresence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phxpresence]
 * MIT License
 *
 * presence/ui.lua
@@ -20,11 +20,13 @@ local ui = {};
 ui.is_open = { false };
 
 -- Widget value buffers, re-synced from the live config every frame so external
--- changes (e.g. /phx-presence commands) stay reflected while the window is open.
+-- changes (e.g. /phxpresence commands) stay reflected while the window is open.
 local r = {
     enabled  = { false },
     showName = { true },
+    showJob = { true },
     showParty = { true },
+    hidePartyWhenSolo = { false },
     showZone = { true },
 };
 
@@ -158,7 +160,7 @@ local function draw_preview_card(p)
 end
 
 --[[
-* Toggles window visibility (bound to /phx-presence config).
+* Toggles window visibility (bound to /phxpresence config).
 --]]
 function ui.toggle()
     ui.is_open[1] = not ui.is_open[1];
@@ -189,11 +191,13 @@ function ui.render(ctx)
     -- Pull current values into the widget buffers.
     r.enabled[1]  = ctx.config.enabled;
     r.showName[1] = ctx.config.showName;
+    r.showJob[1] = ctx.config.showJob;
     r.showParty[1] = ctx.config.showParty;
+    r.hidePartyWhenSolo[1] = ctx.config.hidePartyWhenSolo;
     r.showZone[1] = ctx.config.showZone;
 
     imgui.SetNextWindowSize({ 340, 0 }, ImGuiCond_FirstUseEver);
-    if (imgui.Begin('phx-presence', ui.is_open, ImGuiWindowFlags_None)) then
+    if (imgui.Begin('phxpresence', ui.is_open, ImGuiWindowFlags_None)) then
         -- Connection status + reconnect.
         imgui.Text('Discord:');
         imgui.SameLine();
@@ -235,10 +239,35 @@ function ui.render(ctx)
             imgui.SetTooltip('Your name is visible to friends and shared servers.');
         end
 
-        if (imgui.Checkbox('Show party slots', r.showParty)) then
+        if (imgui.Checkbox('Show job', r.showJob)) then
+            ctx.config.showJob = r.showJob[1];
+            ctx.on_config_change();
+        end
+        if (imgui.IsItemHovered()) then
+            imgui.SetTooltip('Show your job/level (e.g. WAR99/NIN49) and the job icon.');
+        end
+
+        if (imgui.Checkbox('Show party info', r.showParty)) then
             ctx.config.showParty = r.showParty[1];
             ctx.on_config_change();
         end
+        if (imgui.IsItemHovered()) then
+            imgui.SetTooltip('Show party/alliance membership and the slot count.');
+        end
+
+        -- Sub-option of "Show party info"; inert (and grayed) when party info is off.
+        local partyOff = not r.showParty[1];
+        if (partyOff and imgui.BeginDisabled ~= nil) then imgui.BeginDisabled(true); end
+        imgui.Indent();
+        if (imgui.Checkbox('Hide while solo', r.hidePartyWhenSolo)) then
+            ctx.config.hidePartyWhenSolo = r.hidePartyWhenSolo[1];
+            ctx.on_config_change();
+        end
+        if (imgui.IsItemHovered()) then
+            imgui.SetTooltip('When solo, omit party info entirely (no "Solo" shown).');
+        end
+        imgui.Unindent();
+        if (partyOff and imgui.EndDisabled ~= nil) then imgui.EndDisabled(); end
 
         if (imgui.Checkbox('Show current zone', r.showZone)) then
             ctx.config.showZone = r.showZone[1];

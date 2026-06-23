@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-phx-presence is a Discord Rich Presence addon for **Final Fantasy XI**, written for
+phxpresence is a Discord Rich Presence addon for **Final Fantasy XI**, written for
 [Ashita v4](https://github.com/AshitaXI/Ashita-v4beta). It is pure Lua (LuaJIT) —
 there is no build step, no compiler, and no test suite. You develop by editing the
 `.lua` files and reloading the addon in-game.
@@ -15,9 +15,9 @@ There is no CLI build or test harness. To exercise a change you must run it insi
 Ashita with FFXI and the Discord desktop app both running on the same machine:
 
 1. The addon folder must live in the Ashita `addons` directory (or be symlinked there).
-2. In-game: `/addon reload phx-presence` after editing, then drive it with the
-   `/phx-presence` commands (see README) or the `/phx-presence` config window.
-3. `/phx-presence status` reports the Discord pipe connection state and the current
+2. In-game: `/addon reload phxpresence` after editing, then drive it with the
+   `/phxpresence` commands (see README) or the `/phxpresence` config window.
+3. `/phxpresence status` reports the Discord pipe connection state and the current
    details/state lines — the primary way to confirm behavior without a debugger.
 
 `os.time()`-based throttling means presence updates lag a few seconds; flag changes
@@ -32,7 +32,7 @@ The addon is layered so that game-state reading, Discord transport, and the
 game state ──> presence/state.lua ──(snapshot)──> presence/activity.lua ──(activity obj)──> discord/presence.lua ──> discord/ipc.lua ──> Discord pipe
 ```
 
-**`phx-presence.lua`** — the addon entry point and the only file that touches Ashita
+**`phxpresence.lua`** — the addon entry point and the only file that touches Ashita
 events. It owns all mutable state (`gConfig`, `gPresence`, runtime flags) and wires
 the layers together. Key responsibilities:
 - Registers `load` / `unload` / `d3d_present` / `packet_in` / `command` events.
@@ -87,7 +87,7 @@ DLL — this is why the addon needs no compilation.
 ## Assets (not built)
 
 `assets/ffxi.png`, `assets/jobs/*.png`, and `assets/status/*.png` are 512×512 PNGs
-uploaded **manually** to the Discord Developer Portal (app id in `phx-presence.lua` as
+uploaded **manually** to the Discord Developer Portal (app id in `phxpresence.lua` as
 `CLIENT_ID`). The asset key is the filename without extension — no renaming. See the
 "Discord application setup" section of the README.
 

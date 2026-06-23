@@ -1,6 +1,6 @@
 --[[
-* phx-presence - Discord Rich Presence for FFXI
-* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phx-presence]
+* phxpresence - Discord Rich Presence for FFXI
+* Copyright (c) 2026 Shuu-37 [github.com/Shuu-37/phxpresence]
 * MIT License
 *
 * presence/activity.lua
@@ -17,8 +17,11 @@ local activity = {};
 local GAME_IMAGE = 'ffxi';
 
 --[[
-* Builds the social status fragment (the party slot count is shown separately by
-* the party pill).
+* Builds the social status fragment for the state line (the slot count is shown
+* separately by the party pill). Away/Seeking are status and always show; the
+* "In alliance"/"In party"/"Solo" membership text is party info, gated by
+* opts.showParty, and the "Solo" case is further suppressed by
+* opts.hidePartyWhenSolo. Returns nil when there's nothing to show.
 --]]
 local function social_line(snap, opts)
     if (opts.away) then
@@ -27,11 +30,17 @@ local function social_line(snap, opts)
     if (opts.seeking) then
         return 'Seeking party';
     end
+    if (not opts.showParty) then
+        return nil;
+    end
     if (snap.inAlliance) then
         return 'In alliance';
     end
     if (snap.partySize > 1) then
         return 'In party';
+    end
+    if (opts.hidePartyWhenSolo) then
+        return nil;
     end
     return 'Solo';
 end
@@ -42,7 +51,9 @@ end
 * @param {table} snap - Snapshot from state.snapshot().
 * @param {table} opts - Display options:
 *   showName    {boolean} - prefix the character name in details.
-*   showParty   {boolean} - include the party slot pill.
+*   showJob     {boolean} - include the job/level line and the job icon.
+*   showParty   {boolean} - include the party slot pill and membership text.
+*   hidePartyWhenSolo {boolean} - suppress party info while solo (sub of showParty).
 *   showZone    {boolean} - show the current zone (state line + image hover text).
 *   seeking     {boolean} - player is seeking party.
 *   away        {boolean} - player is away.
@@ -73,20 +84,31 @@ function activity.build(snap, opts)
         return act;
     end
 
-    -- Line 2 (details): "<name> - <JOB##/SUB##>"; line 3 (state): "<Zone> - <social>".
+    -- Line 2 (details): name and/or job, e.g. "<name> - <JOB##/SUB##>". Either piece
+    -- can be hidden, leaving the other alone or omitting details entirely.
+    local nameShown = opts.showName and snap.name ~= nil;
     local details;
-    if (opts.showName and snap.name ~= nil) then
+    if (nameShown and opts.showJob) then
         details = ('%s - %s'):format(snap.name, snap.jobLine);
-    else
+    elseif (nameShown) then
+        details = snap.name;
+    elseif (opts.showJob) then
         details = snap.jobLine;
     end
 
-    -- Line 3 (state): "<Zone> - <social>", or just "<social>" when the zone is hidden.
+    -- Line 3 (state): "<Zone> - <social>", "<social>" or just "<Zone>" depending on
+    -- which pieces are present; nil when neither is shown.
     local social = social_line(snap, opts);
+    local state;
+    if (opts.showZone) then
+        state = social and ('%s - %s'):format(snap.zoneName, social) or snap.zoneName;
+    else
+        state = social;
+    end
     local act = T{
         type    = 0, -- Playing
         details = details,
-        state   = opts.showZone and ('%s - %s'):format(snap.zoneName, social) or social,
+        state   = state,
     };
 
     -- Party slot pill (only when grouped and enabled).
@@ -113,7 +135,7 @@ function activity.build(snap, opts)
     elseif (opts.seeking) then
         assets.small_image = 'seeking';
         assets.small_text  = 'Seeking party';
-    elseif (snap.mainAbbr ~= nil) then
+    elseif (opts.showJob and snap.mainAbbr ~= nil) then
         -- Job-icon asset keys match the filenames in assets/jobs/ (e.g. 'war'). The
         -- hover text prefers the search comment (/seacom) when set, falling back to
         -- the job line; the icon itself is always the job.
