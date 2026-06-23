@@ -12,3 +12,6 @@ desktop.ini
 
 # Asset build logs
 tools/build_run.log
+
+# Release bundles (built by tools/build_release.ps1)
+release/
