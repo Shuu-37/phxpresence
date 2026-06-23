@@ -43,14 +43,35 @@ end
 * @param {table} opts - Display options:
 *   showName    {boolean} - prefix the character name in details.
 *   showParty   {boolean} - include the party slot pill.
-*   showZoneArt {boolean} - use zone art for the large image.
+*   showZone    {boolean} - show the current zone (state line + image hover text).
 *   seeking     {boolean} - player is seeking party.
 *   away        {boolean} - player is away.
+*   anon        {boolean} - player is /anon; hide job, zone and party.
+*   seacom      {string}  - search comment (/seacom); used as the job-icon hover
+*                          text when set, else the job line.
 *   startTime   {number}  - epoch seconds for the elapsed timer.
 * @return {table} Discord activity object.
 --]]
 function activity.build(snap, opts)
     opts = opts or T{};
+
+    -- /anon: respect the in-game anonymous flag. It hides job/level (and we extend
+    -- that to zone and party) from other players, so keep the presence to just the
+    -- character name (anon doesn't hide that) and the elapsed timer.
+    if (opts.anon) then
+        local act = T{
+            type    = 0, -- Playing
+            state   = 'Anonymous',
+            assets  = T{ large_image = GAME_IMAGE, large_text = 'Final Fantasy XI' },
+        };
+        if (opts.showName and snap.name ~= nil) then
+            act.details = snap.name;
+        end
+        if (opts.startTime ~= nil and opts.startTime > 0) then
+            act.timestamps = T{ start = opts.startTime };
+        end
+        return act;
+    end
 
     -- Line 2 (details): "<name> - <JOB##/SUB##>"; line 3 (state): "<Zone> - <social>".
     local details;
@@ -60,10 +81,12 @@ function activity.build(snap, opts)
         details = snap.jobLine;
     end
 
+    -- Line 3 (state): "<Zone> - <social>", or just "<social>" when the zone is hidden.
+    local social = social_line(snap, opts);
     local act = T{
         type    = 0, -- Playing
         details = details,
-        state   = ('%s - %s'):format(snap.zoneName, social_line(snap, opts)),
+        state   = opts.showZone and ('%s - %s'):format(snap.zoneName, social) or social,
     };
 
     -- Party slot pill (only when grouped and enabled).
@@ -75,24 +98,34 @@ function activity.build(snap, opts)
         end
     end
 
-    -- Assets: the FFXI game icon as the large image (zone shown as hover text),
-    -- job icon as the small image.
-    local assets = T{};
-    if (opts.showZoneArt) then
-        assets.large_image = GAME_IMAGE;
-        assets.large_text  = snap.zoneName;
-    end
+    -- Assets: the FFXI game icon as the large image (current zone as its hover text
+    -- when shown, else the game name), job icon as the small image.
+    local assets = T{
+        large_image = GAME_IMAGE,
+        large_text  = opts.showZone and snap.zoneName or 'Final Fantasy XI',
+    };
 
-    if (snap.mainAbbr ~= nil) then
-        -- Job-icon asset keys match the filenames in assets/jobs/ (e.g. 'war').
+    -- Small image: a status icon (assets/status/) takes precedence over the job
+    -- icon when /away or /seek is set, matching social_line's away > seeking order.
+    if (opts.away) then
+        assets.small_image = 'away';
+        assets.small_text  = 'Away';
+    elseif (opts.seeking) then
+        assets.small_image = 'seeking';
+        assets.small_text  = 'Seeking party';
+    elseif (snap.mainAbbr ~= nil) then
+        -- Job-icon asset keys match the filenames in assets/jobs/ (e.g. 'war'). The
+        -- hover text prefers the search comment (/seacom) when set, falling back to
+        -- the job line; the icon itself is always the job.
         assets.small_image = snap.mainAbbr:lower();
-        assets.small_text  = snap.jobLine;
+        if (opts.seacom ~= nil and #opts.seacom > 0) then
+            assets.small_text = opts.seacom;
+        else
+            assets.small_text = snap.jobLine;
+        end
     end
 
-    -- Only attach assets if non-empty (json renders {} as []).
-    if (next(assets) ~= nil) then
-        act.assets = assets;
-    end
+    act.assets = assets;
 
     if (opts.startTime ~= nil and opts.startTime > 0) then
         act.timestamps = T{ start = opts.startTime };
