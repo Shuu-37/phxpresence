@@ -10,9 +10,10 @@
 
 local activity = {};
 
--- Static large image: the FFXI game icon, uploaded to the Discord application's
--- Rich Presence art assets under this key (see README). The current zone is shown
--- as the image hover text and in the details line - per-zone art is on hold.
+-- Static large image: the FFXI game icon (assets/ffxi.png), uploaded to the Discord
+-- application's Rich Presence art assets under this key (see README). The current
+-- zone is shown as the image hover text and in the details line - per-zone art is
+-- on hold.
 local GAME_IMAGE = 'ffxi';
 
 --[[
@@ -84,8 +85,8 @@ function activity.build(snap, opts)
 
     local jobAbbr = snap.jobLine:match('^[^/]+');
     if (jobAbbr ~= nil) then
-        -- Job-icon keys are uploaded to the Discord dev portal as job_<abbr>.
-        assets.small_image = ('job_%s'):format(jobAbbr:lower());
+        -- Job-icon asset keys match the filenames in assets/jobs/ (e.g. 'war').
+        assets.small_image = jobAbbr:lower();
         assets.small_text  = ('%s (Lv%d)'):format(snap.jobLine, snap.mainLevel or 0);
     end
 

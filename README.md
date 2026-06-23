@@ -51,9 +51,10 @@ your friends and shared servers). Turn it off any time with
 ## Assets
 
 Presence currently uses a **single large image** — the FFXI game icon
-(`assets/xi_icon.png`) — for every zone. The current zone is still shown in the
-details line and as the image hover text. Per-zone artwork is on hold; the
-plumbing for it (`data/zones.lua` + `tools/build_zone_urls.ps1`, which resolves
+(`assets/ffxi.png`) — for every zone, plus your **primary job** icon as the small
+image (`assets/jobs/`). The current zone is still shown in the details line and as
+the large-image hover text. Per-zone artwork is on hold; the plumbing for it
+(`data/zones.lua` + `tools/build_zone_urls.ps1`, which resolves
 [bg-wiki](https://www.bg-wiki.com) image URLs) remains for later.
 
 ### Discord application setup (one-time)
@@ -63,12 +64,12 @@ for app id `1518771970878214395`:
 
 - Set the **application name** to `Final Fantasy XI` — this is the "game name"
   Discord shows next to *Playing*.
-- Under *Rich Presence → Art Assets*, upload `assets/xi_icon.png` with the key
-  **`ffxi`** (this is the large image).
-- Upload the job icons in `assets/jobs/` for the small image (your **primary
-  job**). Each file is named by job abbreviation, and the key must be
-  `job_<abbr>` — e.g. `war.png` → key **`job_war`**, `nin.png` → **`job_nin`**.
-  If a job's key is missing, the small icon is simply omitted.
+- Under *Rich Presence → Art Assets*, upload everything in `assets/` (the
+  `ffxi.png` large image and all of `assets/jobs/*.png`). The asset keys are taken
+  from the filenames, so **no renaming is needed** — `ffxi.png` → key `ffxi`,
+  `war.png` → `war`, `nin.png` → `nin`, etc. All images are already 512×512.
+
+Assets can take a few minutes to propagate before they appear in presence.
 
 ## Credits
 
