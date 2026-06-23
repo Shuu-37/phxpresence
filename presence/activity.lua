@@ -17,9 +17,10 @@ local activity = {};
 local GAME_IMAGE = 'ffxi';
 
 --[[
-* Builds the state line describing what the player is doing socially.
+* Builds the social status fragment (the party slot count is shown separately by
+* the party pill).
 --]]
-local function state_line(snap, opts)
+local function social_line(snap, opts)
     if (opts.away) then
         return 'Away';
     end
@@ -27,10 +28,10 @@ local function state_line(snap, opts)
         return 'Seeking party';
     end
     if (snap.inAlliance) then
-        return ('In alliance (%d/18)'):format(snap.allianceSize);
+        return 'In alliance';
     end
     if (snap.partySize > 1) then
-        return ('In party (%d/6)'):format(snap.partySize);
+        return 'In party';
     end
     return 'Solo';
 end
@@ -51,19 +52,18 @@ end
 function activity.build(snap, opts)
     opts = opts or T{};
 
-    -- details: "<name> - <JOB/SUB>, in <Zone>"
+    -- Line 2 (details): "<name> - <JOB##/SUB##>"; line 3 (state): "<Zone> - <social>".
     local details;
-    local jobZone = ('%s, in %s'):format(snap.jobLine, snap.zoneName);
     if (opts.showName and snap.name ~= nil) then
-        details = ('%s - %s'):format(snap.name, jobZone);
+        details = ('%s - %s'):format(snap.name, snap.jobLine);
     else
-        details = jobZone;
+        details = snap.jobLine;
     end
 
     local act = T{
         type    = 0, -- Playing
         details = details,
-        state   = state_line(snap, opts),
+        state   = ('%s - %s'):format(snap.zoneName, social_line(snap, opts)),
     };
 
     -- Party slot pill (only when grouped and enabled).
