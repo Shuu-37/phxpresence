@@ -35,7 +35,8 @@ game state ──> presence/state.lua ──(snapshot)──> presence/activity.
 **`phxpresence.lua`** — the addon entry point and the only file that touches Ashita
 events. It owns all mutable state (`gConfig`, `gPresence`, runtime flags) and wires
 the layers together. Key responsibilities:
-- Registers `load` / `unload` / `d3d_present` / `packet_in` / `command` events.
+- Registers `load` / `unload` / `d3d_present` / `packet_in` / `packet_out` /
+  `command` events.
 - The `d3d_present` handler is the heartbeat: throttled by `gConfig.interval`, it
   calls `gPresence:tick()` (keeps the pipe alive) then `refresh()` (re-evaluates
   and pushes presence). It also renders the ImGui window every frame when open.
@@ -44,11 +45,23 @@ the layers together. Key responsibilities:
   flags are **never set by command** — they mirror the in-game state. See the long
   comment near the top of the file for the exact flag-bit layout, which differs
   between the two packets.
+- The `packet_out` handler watches `0x00E0` (search comment) to track the local
+  player's `/seacom` text, which is surfaced as the job-icon hover text. The client
+  resends it on zone-in and login, so an already-set comment is picked up shortly
+  after load.
+- Social flags and the search comment are also seeded from live game memory via
+  `sync_social_flags()` (calling `state.social_flags()`) on `load` and on every
+  poll, so a mid-session `/addon reload` recovers the real state immediately instead
+  of waiting for the next flag packet; the packet handlers still push sub-poll
+  changes instantly. All flag/comment changes call `refresh(true)` only when a value
+  actually flipped.
 
 **`presence/state.lua`** — reads live game state (job/level, zone, party, status)
-into a plain snapshot table. Returns `nil` whenever there's nothing worth
-publishing (logged out, zoning, no job), so callers never post garbage. This is the
-only module that reads `AshitaCore` / `GetPlayerEntity()`.
+into a plain snapshot table via `state.snapshot()`. Returns `nil` whenever there's
+nothing worth publishing (logged out, zoning, no job), so callers never post
+garbage. Also exposes `state.social_flags()`, which reads the `/anon`, `/seek`,
+`/away` bits straight from memory (returns `nil` until in-world). This is the only
+module that reads `AshitaCore` / `GetPlayerEntity()`.
 
 **`presence/activity.lua`** — pure transform: snapshot + display options → a Discord
 activity object. No I/O, no game access. The `/anon` branch produces a deliberately
