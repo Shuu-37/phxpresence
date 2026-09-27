@@ -9,8 +9,10 @@ your search comment (`/seacom`) when you hover the job icon.
 
 ![phxpresence in Discord](docs/preview.png)
 
-It talks to your local Discord desktop app over its RPC pipe — no Discord login,
-OAuth, or native DLLs. Discord just needs to be running on the same machine.
+It talks to the local Discord desktop app without a Discord login, OAuth, or
+extra DLLs. On Windows it uses Discord's named pipe. On Linux, the Phoenix
+Launcher forwards the addon's loopback connection to Discord's local socket.
+Keep the launcher open while playing so that bridge stays available.
 
 ## Install
 
