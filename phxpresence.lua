@@ -5,12 +5,12 @@
 *
 * Publishes Discord Rich Presence (job/subjob, zone, party status, elapsed time)
 * while playing FFXI with the addon enabled. Talks to the local Discord client
-* over its RPC named pipe - no Discord login/OAuth required.
+* over local RPC - no Discord login/OAuth required.
 --]]
 
 addon.name    = 'phxpresence';
 addon.author  = 'Phoenix Team';
-addon.version = '0.1.0';
+addon.version = '0.1.1';
 addon.desc    = 'Discord Rich Presence for FFXI.';
 addon.link    = 'https://github.com/Shuu-37/phxpresence';
 
@@ -60,6 +60,7 @@ local gConfig    = settings.load(defaults);
 local gPresence  = Presence.new(CLIENT_ID);
 local gSession   = 0;     -- epoch of when presence first started this session
 local gLastPoll  = 0;
+local gDirty     = false;
 local gShowing   = false; -- whether we currently have an activity posted
 local gRuntime   = { seeking = false, away = false }; -- live /seek + /away flags from packets
 local gAnon      = false; -- in-game /anon flag, detected from packet 0x0037
@@ -108,7 +109,7 @@ end
 
 --[[
 * Enables or disables presence, persisting the choice and connecting / tearing
-* down the Discord pipe to match. Shared by the command handler and the UI.
+* down the Discord connection to match. Shared by the command handler and the UI.
 --]]
 local function set_enabled(v)
     gConfig.enabled = v;
@@ -143,15 +144,10 @@ local function build_ctx()
     local snap = state.snapshot();
     if (snap ~= nil) then
         local d = activity.build(snap, display_opts());
-        local assets = d.assets or T{};
         preview = {
             details    = d.details or '',
             state      = d.state or '',
             party      = d.party and d.party.size, -- {current, max} or nil
-            largeImage = assets.large_image,
-            smallImage = assets.small_image,
-            largeText  = assets.large_text,
-            smallText  = assets.small_text,
         };
     end
     return {
@@ -215,7 +211,7 @@ ashita.events.register('load', 'load_cb', function ()
 end);
 
 --[[
-* event: unload - clear presence and close the pipe.
+* event: unload - clear presence and close the connection.
 --]]
 ashita.events.register('unload', 'unload_cb', function ()
     gPresence:disconnect();
@@ -236,26 +232,29 @@ ashita.events.register('d3d_present', 'present_cb', function ()
     end
 
     local now = os.time();
-    if ((now - gLastPoll) < (gConfig.interval or DEFAULT_INTERVAL)) then
+    local poll_due = (now - gLastPoll) >= (gConfig.interval or DEFAULT_INTERVAL);
+    if (not poll_due and not gDirty) then
         return;
     end
-    gLastPoll = now;
 
+    if (poll_due) then
+        gLastPoll = now;
+        sync_social_flags(); -- self-heal flags in case a packet was missed
+    end
     gPresence:tick();
-    sync_social_flags(); -- self-heal flags in case a packet was missed
-    refresh(false);
+    refresh(gDirty);
+    gDirty = false;
 end);
 
 --[[
-* Records the latest social flags (/anon, /seek, /away) and pushes presence
-* immediately if any flipped, so the change shows without waiting for the next poll.
+* Records the latest social flags and schedules a refresh after packet processing.
 --]]
 set_flags = function (anon, seeking, away)
     if (anon ~= gAnon or seeking ~= gRuntime.seeking or away ~= gRuntime.away) then
         gAnon = anon;
         gRuntime.seeking = seeking;
         gRuntime.away = away;
-        refresh(true);
+        gDirty = true;
     end
 end
 
@@ -263,8 +262,7 @@ end
 * Seeds the social flags (/anon, /seek, /away) from live game memory (see
 * state.social_flags). Used on load to recover state immediately - a reload
 * mid-session never gets a fresh flag packet - and on each poll as a safety net;
-* no-op until the player is in-world. The packet handlers still push sub-poll
-* changes instantly; this just keeps memory as the source of truth.
+* no-op until the player is in-world. Packet changes are pushed on the next frame.
 --]]
 sync_social_flags = function ()
     local f = state.social_flags();
@@ -295,13 +293,12 @@ local function decode_seacom(data)
 end
 
 --[[
-* Records the latest search comment and pushes presence immediately if it changed,
-* mirroring set_flags so the new tooltip shows without waiting for the next poll.
+* Records the latest search comment and schedules a refresh on the next frame.
 --]]
 local function set_seacom(s)
     if (s ~= gSeacom) then
         gSeacom = s;
-        refresh(true);
+        gDirty = true;
     end
 end
 

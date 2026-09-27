@@ -50,9 +50,9 @@ function Presence:status()
         return 'disconnected';
     end
     if (not self.ready) then
-        return ('connected (discord-ipc-%d), handshaking'):format(self.ipc.pipe or -1);
+        return ('connected (%s), handshaking'):format(self.ipc:label());
     end
-    return ('ready (discord-ipc-%d)'):format(self.ipc.pipe or -1);
+    return ('ready (%s)'):format(self.ipc:label());
 end
 
 --[[
@@ -65,7 +65,7 @@ end
 
 --[[
 * Attempts to connect and send the handshake. Honors the reconnect backoff so we
-* don't hammer CreateFile every frame when Discord isn't running.
+* don't retry the transport every frame when Discord isn't running.
 *
 * @return {boolean} true if connected (handshake sent), false otherwise.
 --]]
@@ -97,7 +97,7 @@ end
 
 --[[
 * Drains any pending frames from Discord. Marks the session ready on the first
-* response, and answers PING with PONG to keep the pipe alive.
+* response, and answers PING with PONG to keep the connection alive.
 --]]
 function Presence:pump()
     if (not self.ipc:is_connected()) then

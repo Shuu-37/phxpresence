@@ -17,11 +17,11 @@ Ashita with FFXI and the Discord desktop app both running on the same machine:
 1. The addon folder must live in the Ashita `addons` directory (or be symlinked there).
 2. In-game: `/addon reload phxpresence` after editing, then drive it with the
    `/phxpresence` commands (see README) or the `/phxpresence` config window.
-3. `/phxpresence status` reports the Discord pipe connection state and the current
+3. `/phxpresence status` reports the Discord connection state and the current
    details/state lines — the primary way to confirm behavior without a debugger.
 
-`os.time()`-based throttling means presence updates lag a few seconds; flag changes
-(`/anon`, `/seek`, `/away`) are pushed immediately via packet handlers.
+`os.time()`-based throttling means periodic presence updates lag a few seconds;
+flag changes (`/anon`, `/seek`, `/away`) are pushed on the next render frame.
 
 ## Architecture
 
@@ -29,7 +29,7 @@ The addon is layered so that game-state reading, Discord transport, and the
 "shape" of the presence are independent. Data flows one direction:
 
 ```
-game state ──> presence/state.lua ──(snapshot)──> presence/activity.lua ──(activity obj)──> discord/presence.lua ──> discord/ipc.lua ──> Discord pipe
+game state ──> presence/state.lua ──(snapshot)──> presence/activity.lua ──(activity obj)──> discord/presence.lua ──> discord/ipc.lua ──> Discord
 ```
 
 **`phxpresence.lua`** — the addon entry point and the only file that touches Ashita
@@ -37,9 +37,9 @@ events. It owns all mutable state (`gConfig`, `gPresence`, runtime flags) and wi
 the layers together. Key responsibilities:
 - Registers `load` / `unload` / `d3d_present` / `packet_in` / `packet_out` /
   `command` events.
-- The `d3d_present` handler is the heartbeat: throttled by `gConfig.interval`, it
-  calls `gPresence:tick()` (keeps the pipe alive) then `refresh()` (re-evaluates
-  and pushes presence). It also renders the ImGui window every frame when open.
+- The `d3d_present` handler is the heartbeat: it calls `gPresence:tick()` and
+  `refresh()` on the polling interval or on the next frame after a packet change.
+  It also renders the ImGui window every frame when open.
 - The `packet_in` handler watches two packets (`0x0037` server-status and `0x000D`
   PC-update) to track the local player's `/anon`, `/seek`, `/away` flags. These
   flags are **never set by command** — they mirror the in-game state. See the long
@@ -52,9 +52,8 @@ the layers together. Key responsibilities:
 - Social flags and the search comment are also seeded from live game memory via
   `sync_social_flags()` (calling `state.social_flags()`) on `load` and on every
   poll, so a mid-session `/addon reload` recovers the real state immediately instead
-  of waiting for the next flag packet; the packet handlers still push sub-poll
-  changes instantly. All flag/comment changes call `refresh(true)` only when a value
-  actually flipped.
+  of waiting for the next flag packet. Packet handlers only mark changes; the
+  next render frame pushes presence after packet processing finishes.
 
 **`presence/state.lua`** — reads live game state (job/level, zone, party, status)
 into a plain snapshot table via `state.snapshot()`. Returns `nil` whenever there's
@@ -71,19 +70,21 @@ assets **and** the local files under `assets/`.
 
 **`presence/ui.lua`** — the ImGui config window. Stateless: the addon passes a
 `ctx` table each frame and the UI reports changes back through callbacks
-(`set_enabled`, `on_config_change`, `on_reconnect`). It also renders a live preview
-card by loading the local PNGs as D3D8 textures.
+(`set_enabled`, `on_config_change`, `on_reconnect`). Its text preview does not
+allocate Direct3D textures.
 
 **`discord/presence.lua`** — high-level Rich Presence manager. Owns the connection
 lifecycle (connect → handshake → ready), throttled `SET_ACTIVITY` sends (change
 detection + a 15s resend floor to respect Discord's rate limit), PING/PONG
 heartbeat, queuing of activities sent before `ready`, and reconnect-with-backoff.
 
-**`discord/ipc.lua`** — low-level transport. Implements Discord's RPC framing
-(`[op:u32 LE][len:u32 LE][json]`) over the `\\.\pipe\discord-ipc-N` named pipe via
-LuaJIT FFI against Win32 (`CreateFileA`/`WriteFile`/`ReadFile`/`PeekNamedPipe`).
-Reads are non-blocking (peek-first) so the render thread never stalls. No native
-DLL — this is why the addon needs no compilation.
+**`discord/ipc.lua`** — Windows named-pipe transport using Win32 FFI. It waits
+until a complete Discord RPC frame is available before reading.
+
+**`discord/ipc_tcp.lua`** — Linux transport through the Phoenix Launcher's local
+TCP-to-Unix-socket bridge. It uses Ashita's bundled LuaSocket with non-blocking
+reads and writes. `PHXPRESENCE_PORT` selects it inside Proton, and
+`PHXPRESENCE_PID` supplies a host process ID for Discord.
 
 ### Conventions worth matching
 

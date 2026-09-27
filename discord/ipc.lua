@@ -12,6 +12,11 @@
 * exposes framed write + non-blocking read.
 --]]
 
+local bridge_port = tonumber(os.getenv('PHXPRESENCE_PORT'));
+if (bridge_port ~= nil and bridge_port >= 1 and bridge_port <= 65535 and bridge_port % 1 == 0) then
+    return require('discord.ipc_tcp').new_transport(bridge_port);
+end
+
 require('win32types');
 
 local ffi = require('ffi');
@@ -73,6 +78,10 @@ function IPC:is_connected()
     return self.handle ~= nil;
 end
 
+function IPC:label()
+    return ('discord-ipc-%d'):format(self.pipe or -1);
+end
+
 --[[
 * Attempts to open one of the discord-ipc-0..9 pipes. First success wins.
 * Returns true on success, false if Discord is not running / no pipe is open.
@@ -129,7 +138,7 @@ function IPC:write(op, payload)
     end
 
     local ok = C.WriteFile(self.handle, frame, 8 + len, self.dwords, nil);
-    if (ok == 0) then
+    if (ok == 0 or self.dwords[0] ~= 8 + len) then
         -- Broken pipe (Discord closed/restarted). Drop the connection so the
         -- caller can reconnect.
         self:close();
@@ -151,41 +160,38 @@ function IPC:read()
         return nil;
     end
 
-    -- How many bytes are waiting?
+    -- Peek the header without consuming it. A payload can arrive in pieces;
+    -- reading it before the entire frame is buffered would block the game thread.
     local avail = ffi.new('DWORD[1]');
-    local ok = C.PeekNamedPipe(self.handle, nil, 0, nil, avail, nil);
+    local peeked = ffi.new('DWORD[1]');
+    local ok = C.PeekNamedPipe(self.handle, self.readbuf, 8, peeked, avail, nil);
     if (ok == 0) then
         self:close();
         return nil;
     end
-    if (avail[0] < 8) then
+    if (peeked[0] < 8) then
         return nil; -- not even a full header yet
-    end
-
-    -- Read the 8 byte header.
-    if (C.ReadFile(self.handle, self.readbuf, 8, self.dwords, nil) == 0) then
-        self:close();
-        return nil;
     end
 
     local hdr = ffi.cast('uint32_t*', self.readbuf);
     local op = tonumber(hdr[0]);
     local len = tonumber(hdr[1]);
-
-    if (len <= 0) then
-        return op, '';
+    if (len > ffi.sizeof(self.readbuf) - 8) then
+        self:close();
+        return nil;
+    end
+    local frame_size = 8 + len;
+    if (avail[0] < frame_size) then
+        return nil;
     end
 
-    if (len > ffi.sizeof(self.readbuf)) then
-        len = ffi.sizeof(self.readbuf); -- guard; payloads are tiny in practice
-    end
-
-    if (C.ReadFile(self.handle, self.readbuf, len, self.dwords, nil) == 0) then
+    if (C.ReadFile(self.handle, self.readbuf, frame_size, self.dwords, nil) == 0
+        or self.dwords[0] ~= frame_size) then
         self:close();
         return nil;
     end
 
-    return op, ffi.string(self.readbuf, tonumber(self.dwords[0]));
+    return op, ffi.string(self.readbuf + 8, len);
 end
 
 return IPC;
